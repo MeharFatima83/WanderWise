@@ -1,42 +1,61 @@
-// backend/server.js
-const express = require("express");
-const cors = require("cors");
-const { NotFoundError, BadRequestError } = require("es-errors");
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+require('dotenv').config();
 
 const app = express();
-const PORT = 5000;
 
-// Import the itinerary router
-const itineraryRoute = require("./routes/itinerary");
+// CORS configuration
+const corsOptions = {
+  origin: [
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002'
+  ],
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
+  credentials: true,
+  optionsSuccessStatus: 200,
+};
 
-// Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
-// Routes
-app.use("/itinerary", itineraryRoute);
+// allow frontend origin (replace port if different)
+app.use(cors({
+  origin: 'http://localhost:3000', // or http://localhost:5173 for Vite
+  credentials: true,
+}));
 
-app.get("/", (req, res) => {
-  res.send("WanderWise Backend is running");
-});
-
-// 404 route handler for undefined routes
+// Add request logging middleware
 app.use((req, res, next) => {
-  next(new NotFoundError("Route not found"));
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
 });
 
-// Global error handler
-app.use((err, req, res, next) => {
-  if (err.statusCode) {
-    // If error has a statusCode (es-errors do), use it
-    return res.status(err.statusCode).json({ error: err.message });
-  }
+// Import routes
+const routes = require('./routes/routes');
+app.use('/api', routes);
 
-  // default to 500 Internal Server Error
-  console.error(err);
-  res.status(500).json({ error: "Internal Server Error" });
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    message: 'Backend server is running!' 
+  });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 5000;
+
+// Connect to MongoDB
+mongoose
+  .connect(process.env.MONGO_URI) // no need for useNewUrlParser or useUnifiedTopology
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+    app.listen(PORT, () =>
+      console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`)
+    );
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err);
+  });
