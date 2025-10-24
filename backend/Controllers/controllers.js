@@ -1,17 +1,21 @@
-const { User, Place, Itinerary } = require('../Model/Model');
 const jwt = require('jsonwebtoken');
+const { User, Place, Itinerary } = require('../Model/Model'); // Ensure this path is correct
 
-// Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '7d' });
+// Health check controller (optional but good for testing)
+const healthCheck = (req, res) => {
+  res.json({ ok: true, message: 'Backend server is running', timestamp: new Date().toISOString() });
 };
 
-// User Controllers
+// --- User Controllers ---
 const userControllers = {
-  // Register new user
   signup: async (req, res) => {
     try {
       const { name, email, password } = req.body;
+
+      // Validate required fields
+      if (!name || !email || !password) {
+        return res.status(400).json({ message: 'Name, email, and password are required' });
+      }
 
       // Check if user already exists
       const existingUser = await User.findOne({ email });
@@ -19,95 +23,124 @@ const userControllers = {
         return res.status(400).json({ message: 'User already exists with this email' });
       }
 
-      // Create new user
+      // Create new user (Password hashing should be handled in your User model via middleware)
       const user = new User({ name, email, password });
       await user.save();
 
-      // Generate token
-      const token = generateToken(user._id);
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET || 'your-secret-key', // Use environment variable for secret
+        { expiresIn: '7d' } // Token expiration time
+      );
 
+      // Send response (exclude password)
       res.status(201).json({
         message: 'User created successfully',
+        token,
         user: {
           id: user._id,
           name: user.name,
           email: user.email
-        },
-        token
+        }
       });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Signup error:', error);
+      res.status(500).json({ message: 'Server error during signup' });
     }
   },
 
-  // Login user
   authenticate: async (req, res) => {
     try {
       const { email, password } = req.body;
 
-      // Find user
+      // Validate input
+      if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+      }
+
+      // Find user by email
       const user = await User.findOne({ email });
       if (!user) {
-        return res.status(400).json({ message: 'Invalid credentials' });
+        // Use generic message for security
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      // Check password
-      const isMatch = await user.comparePassword(password);
-      if (!isMatch) {
-        return res.status(400).json({ message: 'Invalid credentials' });
+      // Check password using the method defined in your User model
+      const isPasswordValid = await user.comparePassword(password);
+      if (!isPasswordValid) {
+        // Use generic message for security
+        return res.status(401).json({ message: 'Invalid credentials' });
       }
 
-      // Generate token
-      const token = generateToken(user._id);
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, email: user.email },
+        process.env.JWT_SECRET || 'your-secret-key',
+        { expiresIn: '7d' }
+      );
 
+      // Send response (exclude password)
       res.json({
         message: 'Login successful',
+        token,
         user: {
           id: user._id,
           name: user.name,
           email: user.email
-        },
-        token
+        }
       });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Authentication error:', error);
+      res.status(500).json({ message: 'Server error during authentication' });
     }
   },
 
-  // Get user profile
   getProfile: async (req, res) => {
+    // req.userId is added by the authenticateToken middleware
     try {
+      // Find user by ID from token, exclude password field
       const user = await User.findById(req.userId).select('-password');
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
-      res.json({ user });
+
+      // Return user profile data
+      res.json({
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          createdAt: user.createdAt // Example: include join date
+        }
+      });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Get profile error:', error);
+      res.status(500).json({ message: 'Server error getting profile' });
     }
   }
 };
 
-// Place Controllers
+// --- Place Controllers ---
 const placeControllers = {
-  // Get all places
   getAllPlaces: async (req, res) => {
     try {
-      const { category, location, priceRange } = req.query;
+      // Basic filtering example (can be expanded)
+      const { category, priceRange, location } = req.query;
       let filter = {};
 
       if (category) filter.category = category;
-      if (location) filter.location = { $regex: location, $options: 'i' };
-      if (priceRange) filter.priceRange = priceRange;
+      if (priceRange) filter.priceRange = priceRange; // Assuming priceRange is a specific value/category
+      if (location) filter.location = new RegExp(location, 'i'); // Case-insensitive search
 
-      const places = await Place.find(filter).sort({ rating: -1 });
+      const places = await Place.find(filter);
       res.json({ places });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Get places error:', error);
+      res.status(500).json({ message: 'Server error getting places' });
     }
   },
 
-  // Get place by ID
   getPlaceById: async (req, res) => {
     try {
       const place = await Place.findById(req.params.id);
@@ -116,112 +149,154 @@ const placeControllers = {
       }
       res.json({ place });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Get place error:', error);
+      res.status(500).json({ message: 'Server error getting place' });
     }
   },
 
-  // Create new place (admin only)
+  // Example: Protected route (e.g., only admin can create places)
   createPlace: async (req, res) => {
+    // Add admin role check here if needed based on req.userId
     try {
-      const place = new Place(req.body);
+      const placeData = req.body;
+      // Add validation for required place fields here
+      const place = new Place(placeData);
       await place.save();
       res.status(201).json({ message: 'Place created successfully', place });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Create place error:', error);
+      // Handle validation errors specifically if needed
+      if (error.name === 'ValidationError') {
+         return res.status(400).json({ message: 'Validation failed', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Server error creating place' });
     }
   }
 };
 
-// Itinerary Controllers
+// --- Itinerary Controllers ---
 const itineraryControllers = {
-  // Get user's itineraries
+  // Get all itineraries for the logged-in user
   getUserItineraries: async (req, res) => {
+    // req.userId comes from authenticateToken middleware
     try {
       const itineraries = await Itinerary.find({ user: req.userId })
-        .populate('days.places.place')
-        .sort({ createdAt: -1 });
+        .populate('days.places.place') // Populate place details if needed
+        .sort({ createdAt: -1 }); // Sort by newest first
       res.json({ itineraries });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Get itineraries error:', error);
+      res.status(500).json({ message: 'Server error getting itineraries' });
     }
   },
 
-  // Get single itinerary
+  // Get a single itinerary by ID, ensuring it belongs to the user
   getItineraryById: async (req, res) => {
     try {
-      const itinerary = await Itinerary.findOne({ 
-        _id: req.params.id, 
-        user: req.userId 
-      }).populate('days.places.place');
-      
+      const itinerary = await Itinerary.findOne({
+        _id: req.params.id,
+        user: req.userId // Ensure user owns this itinerary
+      }).populate('days.places.place'); // Populate details
+
       if (!itinerary) {
-        return res.status(404).json({ message: 'Itinerary not found' });
+        return res.status(404).json({ message: 'Itinerary not found or access denied' });
       }
       res.json({ itinerary });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Get itinerary error:', error);
+      res.status(500).json({ message: 'Server error getting itinerary' });
     }
   },
 
-  // Create new itinerary
+  // Create a new itinerary for the logged-in user
   createItinerary: async (req, res) => {
     try {
-      const itineraryData = {
-        ...req.body,
-        user: req.userId
-      };
+      // Combine request body with the user ID from the token
+      const { title, destination, duration /*, other fields... */ } = req.body;
+
+      // Basic validation
+       if (!title || !destination || !duration) {
+          return res.status(400).json({ message: 'Title, destination, and duration are required.' });
+        }
+
+      // Add user ID
+      const itineraryData = { ...req.body, user: req.userId };
+
+      // TODO: Add logic here to create initial 'days' array based on duration if needed
+      // Example:
+      // if (!itineraryData.days && itineraryData.duration > 0) {
+      //   itineraryData.days = Array.from({ length: itineraryData.duration }, (_, i) => ({
+      //     dayNumber: i + 1,
+      //     title: `Day ${i + 1}`,
+      //     description: '',
+      //     places: [],
+      //     budget: 0
+      //   }));
+      // }
+
+
       const itinerary = new Itinerary(itineraryData);
-      await itinerary.save();
-      
-      const populatedItinerary = await Itinerary.findById(itinerary._id)
-        .populate('days.places.place');
-      
-      res.status(201).json({ 
-        message: 'Itinerary created successfully', 
-        itinerary: populatedItinerary 
-      });
+      await itinerary.save(); // This triggers Mongoose validation
+
+      // Optionally populate after saving if needed immediately
+      // const populatedItinerary = await Itinerary.findById(itinerary._id).populate(...);
+
+      res.status(201).json({ message: 'Itinerary created successfully', itinerary });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Create itinerary error:', error);
+       // Handle Mongoose validation errors
+      if (error.name === 'ValidationError') {
+         return res.status(400).json({ message: 'Validation failed', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Server error creating itinerary' });
     }
   },
 
-  // Update itinerary
+  // Update an existing itinerary
   updateItinerary: async (req, res) => {
     try {
+      const updatedData = req.body;
       const itinerary = await Itinerary.findOneAndUpdate(
-        { _id: req.params.id, user: req.userId },
-        req.body,
-        { new: true, runValidators: true }
+        { _id: req.params.id, user: req.userId }, // Find by ID and ensure user owns it
+        updatedData,
+        { new: true, runValidators: true } // Return updated doc and run schema validators
       ).populate('days.places.place');
-      
+
       if (!itinerary) {
-        return res.status(404).json({ message: 'Itinerary not found' });
+        return res.status(404).json({ message: 'Itinerary not found or access denied' });
       }
       res.json({ message: 'Itinerary updated successfully', itinerary });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Update itinerary error:', error);
+       if (error.name === 'ValidationError') {
+         return res.status(400).json({ message: 'Validation failed', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Server error updating itinerary' });
     }
   },
 
-  // Delete itinerary
+  // Delete an itinerary
   deleteItinerary: async (req, res) => {
     try {
       const itinerary = await Itinerary.findOneAndDelete({
         _id: req.params.id,
-        user: req.userId
+        user: req.userId // Ensure user owns it
       });
-      
+
       if (!itinerary) {
-        return res.status(404).json({ message: 'Itinerary not found' });
+        return res.status(404).json({ message: 'Itinerary not found or access denied' });
       }
       res.json({ message: 'Itinerary deleted successfully' });
     } catch (error) {
-      res.status(500).json({ message: 'Server error', error: error.message });
+      console.error('Delete itinerary error:', error);
+      res.status(500).json({ message: 'Server error deleting itinerary' });
     }
   }
 };
 
+// Export all controllers
 module.exports = {
+  healthCheck,
   userControllers,
   placeControllers,
   itineraryControllers

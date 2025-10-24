@@ -1,61 +1,38 @@
 const express = require('express');
-const mongoose = require('mongoose');
 const cors = require('cors');
-require('dotenv').config();
+const mongoose = require('mongoose');
+const routes = require('./routes/routes');
+const { healthCheck } = require('./Controllers/controllers');
 
 const app = express();
 
-// CORS configuration
-const corsOptions = {
-  origin: [
-    'http://localhost:3000',
-    'http://localhost:3001',
-    'http://localhost:3002'
-  ],
-  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE'],
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
-
-app.use(cors(corsOptions));
+// Middleware
 app.use(express.json());
+app.use(cors({ origin: 'http://localhost:3000', credentials: true }));
 
-// allow frontend origin (replace port if different)
-app.use(cors({
-  origin: 'http://localhost:3000', // or http://localhost:5173 for Vite
-  credentials: true,
-}));
+// Connect to MongoDB
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/wanderwise';
+mongoose.connect(MONGODB_URI)
+  .then(() => console.log('Connected to MongoDB'))
+  .catch(err => console.error('MongoDB connection error:', err));
 
-// Add request logging middleware
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
-  next();
-});
-
-// Import routes
-const routes = require('./routes/routes');
+// Routes
+app.get('/health', healthCheck);
 app.use('/api', routes);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
-    timestamp: new Date().toISOString(),
-    message: 'Backend server is running!' 
-  });
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ message: 'Something went wrong!' });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
 });
 
 const PORT = process.env.PORT || 5000;
-
-// Connect to MongoDB
-mongoose
-  .connect(process.env.MONGO_URI) // no need for useNewUrlParser or useUnifiedTopology
-  .then(() => {
-    console.log('✅ MongoDB connected successfully');
-    app.listen(PORT, () =>
-      console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`)
-    );
-  })
-  .catch((err) => {
-    console.error('❌ MongoDB connection error:', err);
-  });
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`📊 Health check: http://localhost:${PORT}/health`);
+});

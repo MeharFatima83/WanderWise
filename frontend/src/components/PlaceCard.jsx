@@ -10,52 +10,58 @@ const PlaceCard = ({ place, onSelect, isSelected = false }) => {
     }
   };
 
-  const getCategoryIcon = (category) => {
-    switch (category) {
-      case 'attraction': return '🎯';
-      case 'restaurant': return '🍽️';
-      case 'hotel': return '🏨';
-      case 'activity': return '🎪';
-      case 'landmark': return '🏛️';
-      default: return '📍';
-    }
-  };
-
   return (
     <div 
-      className={`place-card ${isSelected ? 'selected' : ''}`}
+      className={`bg-white shadow-lg rounded-2xl overflow-hidden hover:scale-105 transition-transform duration-300 cursor-pointer ${
+        isSelected ? 'ring-2 ring-blue-500' : ''
+      }`}
       onClick={() => onSelect && onSelect(place)}
     >
-      <div className="place-image">
-        <img src={place.image} alt={place.name} />
-        <div className="place-category">
-          <span className="category-icon">{getCategoryIcon(place.category)}</span>
-          <span className="category-text">{place.category}</span>
+      {/* Image Section */}
+      <div className="relative">
+        <img 
+          src={place.image} 
+          alt={place.name} 
+          className="w-full h-56 object-cover"
+        />
+        <div className="absolute top-3 left-3 bg-white/80 px-3 py-1 rounded-full text-sm font-medium">
+          {place.category}
         </div>
-        <div className="place-rating">
-          <span className="rating-stars">⭐</span>
-          <span className="rating-value">{place.rating}</span>
+        <div className="absolute top-3 right-3 bg-yellow-400 px-2 py-1 rounded-md text-sm font-semibold">
+          ⭐ {place.rating}
         </div>
       </div>
-      
-      <div className="place-content">
-        <h3 className="place-name">{place.name}</h3>
-        <p className="place-location">📍 {place.location}</p>
-        <p className="place-description">{place.description}</p>
-        
-        <div className="place-footer">
-          <div 
-            className="price-range"
-            style={{ color: getPriceRangeColor(place.priceRange) }}
-          >
-            {place.priceRange.toUpperCase()}
+
+      {/* Content Section */}
+      <div className="p-4 space-y-2">
+        <h3 className="text-lg font-bold text-gray-800">{place.name}</h3>
+        <p className="text-gray-600 text-sm">📍 {place.location}</p>
+        <p className="text-gray-700 text-sm">{place.description}</p>
+
+        {/* Price & Days */}
+        <div className="flex justify-between items-center mt-3">
+          <div>
+            <p className="text-gray-500 text-sm">Duration</p>
+            <p className="font-semibold">{place.days}</p>
           </div>
-          {onSelect && (
-            <button className="select-btn">
-              {isSelected ? 'Selected' : 'Select'}
-            </button>
-          )}
+          <div className="text-right">
+            <p className="text-gray-500 text-sm">Price</p>
+            <p className="font-bold text-lg" style={{ color: getPriceRangeColor(place.priceRange) }}>
+              ₹{place.price.toLocaleString()}
+            </p>
+          </div>
         </div>
+
+        {/* Button */}
+        {onSelect && (
+          <button
+            className={`mt-4 w-full py-2 rounded-lg text-white font-semibold ${
+              isSelected ? 'bg-blue-600' : 'bg-blue-500 hover:bg-blue-600'
+            }`}
+          >
+            {isSelected ? 'Selected' : 'Select'}
+          </button>
+        )}
       </div>
     </div>
   );

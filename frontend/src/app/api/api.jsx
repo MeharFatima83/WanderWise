@@ -79,7 +79,7 @@ export const userAPI = {
   // Test backend connection
   testConnection: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/test`);
+      const response = await fetch('http://localhost:5000/api/test');
       const data = await response.json();
       console.log('Backend test:', data);
       return data;
@@ -107,17 +107,17 @@ export const userAPI = {
 export const placesAPI = {
   getAllPlaces: async (filters = {}) => {
     const queryParams = new URLSearchParams(filters);
-    const response = await fetch(`${API_BASE_URL}/places?${queryParams}`);
+    const response = await fetch(`http://localhost:5000/api/places?${queryParams}`);
     return response.json();
   },
 
   getPlaceById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/places/${id}`);
+    const response = await fetch(`http://localhost:5000/api/places/${id}`);
     return response.json();
   },
 
   createPlace: async (placeData) => {
-    const response = await fetch(`${API_BASE_URL}/places`, {
+    const response = await fetch('http://localhost:5000/api/places', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(placeData)
@@ -129,21 +129,21 @@ export const placesAPI = {
 // Itinerary API functions
 export const itineraryAPI = {
   getUserItineraries: async () => {
-    const response = await fetch(`${API_BASE_URL}/itineraries`, {
+    const response = await fetch('http://localhost:5000/api/itineraries', {
       headers: getAuthHeaders()
     });
     return response.json();
   },
 
   getItineraryById: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/itineraries/${id}`, {
+    const response = await fetch(`http://localhost:5000/api/itineraries/${id}`, {
       headers: getAuthHeaders()
     });
     return response.json();
   },
 
   createItinerary: async (itineraryData) => {
-    const response = await fetch(`${API_BASE_URL}/itineraries`, {
+    const response = await fetch('http://localhost:5000/api/itineraries', {
       method: 'POST',
       headers: getAuthHeaders(),
       body: JSON.stringify(itineraryData)
@@ -152,7 +152,7 @@ export const itineraryAPI = {
   },
 
   updateItinerary: async (id, itineraryData) => {
-    const response = await fetch(`${API_BASE_URL}/itineraries/${id}`, {
+    const response = await fetch(`http://localhost:5000/api/itineraries/${id}`, {
       method: 'PUT',
       headers: getAuthHeaders(),
       body: JSON.stringify(itineraryData)
@@ -161,7 +161,7 @@ export const itineraryAPI = {
   },
 
   deleteItinerary: async (id) => {
-    const response = await fetch(`${API_BASE_URL}/itineraries/${id}`, {
+    const response = await fetch(`http://localhost:5000/api/itineraries/${id}`, {
       method: 'DELETE',
       headers: getAuthHeaders()
     });
@@ -172,7 +172,7 @@ export const itineraryAPI = {
 // Legacy function for backward compatibility
 export const fetchSamples = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/places`);
+    const response = await fetch('http://localhost:5000/api/places');
     const data = await response.json();
     return data.places || [];
   } catch (error) {

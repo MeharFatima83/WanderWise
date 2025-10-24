@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
-import { userAPI } from '../../api/api';
 
 export default function SignupPage() {
   const navigate = useNavigate();
@@ -9,6 +8,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(''); // State for success message
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -16,7 +16,9 @@ export default function SignupPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
+    // --- Your validation is already great ---
     if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) return setError('Fill all fields');
     if (!formData.email.includes('@')) return setError('Invalid email');
     if (formData.password.length < 6) return setError('Password too short');
@@ -24,26 +26,36 @@ export default function SignupPage() {
 
     setLoading(true);
     try {
-      console.log('Attempting signup...');
-      const data = await userAPI.signup({
-        name: formData.name,
-        email: formData.email,
-        password: formData.password
+      // --- Use the correct, full backend URL for signup ---
+      const res = await fetch('http://localhost:5000/api/users/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important for CORS consistency
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password
+        }),
       });
-      
-      console.log('Signup successful:', data);
-      
-      if (data.message && data.user) {
-        // Show success message
-        setError('');
-        alert('Account created successfully! Please login.');
-        navigate('/login');
-      } else {
-        setError(data.message || 'Signup failed');
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        // Use the error message from the backend if it exists
+        throw new Error(data.message || 'Signup failed. Please try again.');
       }
-    } catch (error) {
-      console.error('Signup error:', error);
-      setError(error.message || 'Signup failed. Please check your connection and try again.');
+      
+      // --- Set a success message instead of using alert() ---
+      setSuccess('Account created successfully! Redirecting to login...');
+      
+      // Redirect to login after a short delay so the user can read the message
+      setTimeout(() => {
+        navigate('/login');
+      }, 2000);
+
+    } catch (err) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Signup failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
@@ -65,6 +77,12 @@ export default function SignupPage() {
           {error && (
             <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
               ❌ {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
+              ✅ {success}
             </div>
           )}
 

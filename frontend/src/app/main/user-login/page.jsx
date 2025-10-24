@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../context/AuthContext';
 
 export default function LoginPage() {
@@ -18,126 +18,69 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      // use relative path so CRA dev proxy forwards request to backend -> avoids CORS
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch('http://localhost:5000/api/users/authenticate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // if your backend sets cookies for auth, uncomment credentials
-        // credentials: 'include',
         body: JSON.stringify({ email: formData.email, password: formData.password }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.message || 'Invalid credentials');
+        setError(data.message || 'Invalid credentials or server error.');
         setLoading(false);
         return;
       }
 
-      // expected backend response: { token, user } or { user } depending on your API
-      if (data.token) localStorage.setItem('authToken', data.token);
-      login(data.user || data); // adapt based on your AuthContext/login signature
-
+      if (data.token) localStorage.setItem('token', data.token);
+      login(data.user || data);
       navigate('/');
     } catch (err) {
       console.error('Login request failed:', err);
-      setError('Network error. Check server and CORS.');
+      setError('Network error. Is the backend server running?');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-cyan-50 py-12 px-4">
-      <div className="mt-7 max-w-lg mx-auto bg-white/90 backdrop-blur-sm border border-blue-200 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300">
-        <div className="p-6 sm:p-8">
-          <div className="text-center">
-            <h1 className="block text-3xl font-bold text-gray-800 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-              🔐 Sign In
-            </h1>
-            <p className="mt-3 text-sm text-gray-600">
-              Welcome back! Sign in to continue your journey.
-            </p>
+    <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
+        <h1 className="text-2xl font-bold mb-4">🔐 Sign In</h1>
+        {error && <div className="mb-4 text-red-600">{error}</div>}
+        <form onSubmit={handleSubmit}>
+          <label className="block mb-1">Email Address</label>
+          <input
+            name="email"
+            type="email"
+            value={formData.email}
+            onChange={handleChange}
+            required
+            className="w-full mb-3 p-2 border rounded"
+          />
+          <label className="block mb-1">Password</label>
+          <div className="flex gap-2">
+            <input
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              value={formData.password}
+              onChange={handleChange}
+              required
+              className="flex-1 p-2 border rounded"
+            />
+            <button type="button" onClick={() => setShowPassword(s => !s)} className="px-3">
+              {showPassword ? 'Hide' : 'Show'}
+            </button>
           </div>
 
-          {error && (
-            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-              ❌ {error}
-            </div>
-          )}
+          <button type="submit" disabled={loading} className="mt-4 w-full p-2 bg-blue-600 text-white rounded">
+            {loading ? 'Signing in...' : '✨ Sign In'}
+          </button>
+        </form>
 
-          <div className="mt-6">
-            <form onSubmit={handleSubmit}>
-              <div className="grid gap-y-5">
-                {/* Email */}
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    Email Address
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    placeholder="Enter your email address"
-                    className="py-3 px-4 block w-full border-2 border-blue-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white/70 backdrop-blur-sm hover:bg-white/90"
-                    required
-                  />
-                </div>
-
-                {/* Password */}
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                    Password
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      id="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="Enter your password"
-                      className="py-3 px-4 pr-12 block w-full border-2 border-blue-200 rounded-xl text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 bg-white/70 backdrop-blur-sm hover:bg-white/90"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-blue-500 transition-colors duration-200"
-                    >
-                      {showPassword ? 'Hide' : 'Show'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Submit Button */}
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full py-3 px-4 inline-flex justify-center items-center gap-x-2 text-sm font-semibold rounded-xl border border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl"
-                >
-                  {loading ? '🔄 Signing In...' : '✨ Sign In'}
-                </button>
-
-                {/* Signup Link */}
-                <div className="text-center">
-                  <p className="text-sm text-gray-600">
-                    Don't have an account?{' '}
-                    <Link 
-                      to="/signup" 
-                      className="font-semibold text-blue-600 hover:text-blue-500 transition-colors duration-200"
-                    >
-                      Sign Up
-                    </Link>
-                  </p>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
+        <p className="mt-4 text-sm">
+          Don't have an account? <Link to="/signup" className="text-blue-600">Sign Up</Link>
+        </p>
       </div>
     </div>
   );
