@@ -88,6 +88,8 @@ const itinerarySchema = new mongoose.Schema({
   },
   description: {
     type: String,
+    // Note: Description wasn't explicitly required in the form,
+    // but the schema requires it. Ensure you send it or make it optional.
     required: true
   },
   destination: {
@@ -110,9 +112,9 @@ const itinerarySchema = new mongoose.Schema({
   },
   endDate: {
     type: Date,
-    required: true
+    required: true // This requires the controller fix we made
   },
-  days: [{
+  days: [{ // This defines the structure for individual days within the itinerary
     dayNumber: {
       type: Number,
       required: true
@@ -123,44 +125,47 @@ const itinerarySchema = new mongoose.Schema({
     },
     description: {
       type: String,
-      required: true
+      // Consider if this day-level description is always required
+      required: false // Made optional for now, adjust if needed
     },
-    places: [{
+    places: [{ // Array to hold places planned for the day
       place: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Place'
+        ref: 'Place' // Links to your Place model
       },
-      timeSlot: {
+      timeSlot: { // e.g., morning, afternoon, evening
         type: String,
         enum: ['morning', 'afternoon', 'evening'],
-        required: true
+        required: false // Made optional, adjust if needed
       },
-      duration: {
-        type: Number, // in hours
+      duration: { // How long to spend at the place (e.g., in hours)
+        type: Number,
         default: 2
-      }
+      },
+      notes: String // Optional notes for this specific place visit
     }],
-    budget: {
+    budget: { // Optional budget specifically for this day
       type: Number,
       default: 0
     }
   }],
-  user: {
+  user: { // Link to the user who created this itinerary
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
   },
-  isPublic: {
+  isPublic: { // Flag if the itinerary can be viewed by others
     type: Boolean,
     default: false
   }
 }, {
-  timestamps: true
+  timestamps: true // Automatically adds createdAt and updatedAt fields
 });
 
-// Create models
+// Create models from the schemas
 const User = mongoose.model('User', userSchema);
 const Place = mongoose.model('Place', placeSchema);
 const Itinerary = mongoose.model('Itinerary', itinerarySchema);
 
+// Export the models
 module.exports = { User, Place, Itinerary };

@@ -146,37 +146,70 @@ export default function ItineraryDetailsPage() {
           </div>
         </div>
 
-        {/* Day-by-Day Itinerary (Placeholder) */}
+        {/* Day-by-Day Itinerary */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-lg p-6 sm:p-8">
           <h2 className="text-3xl font-bold text-blue-800 mb-6">Day-by-Day Plan</h2>
           
-          <div className="text-center text-gray-500 border-2 border-dashed border-gray-300 p-12 rounded-xl">
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">Coming Soon!</h3>
-            <p>
-              Your day-by-day plan will appear here.
-            </p>
-            <p className="mt-2 text-sm">
-              Next step: Update your backend `createItinerary` function to automatically generate the `days` array!
-            </p>
-          </div>
-          
-          {/* TODO: Once your backend 'days' array is populated, you will loop through it here:
+          {itinerary.days && itinerary.days.length > 0 ? (
             <div className="space-y-6">
               {itinerary.days.map((day, index) => (
-                <div key={index} className="border-b border-blue-100 pb-4">
-                  <h3 className="text-2xl font-semibold text-blue-700">Day {day.day}</h3>
-                  <p className="text-gray-600 mt-1">{day.description}</p>
-                  <div className="mt-4 space-y-2">
-                    {day.places.map((place, pIndex) => (
-                      <div key={pIndex} className="p-3 bg-gray-50 rounded-lg">
-                        {place.name}
-                      </div>
-                    ))}
+                <div key={index} className="border-2 border-blue-100 rounded-xl p-6 bg-gradient-to-br from-blue-50 to-white hover:shadow-lg transition-shadow">
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-2xl font-semibold text-blue-700">{day.title}</h3>
+                      <p className="text-gray-600 mt-1">{day.description}</p>
+                    </div>
+                    <div className="bg-blue-500 text-white px-4 py-2 rounded-lg font-bold">
+                      Day {day.dayNumber}
+                    </div>
                   </div>
+                  
+                  {/* Places for the day */}
+                  {day.places && day.places.length > 0 ? (
+                    <div className="mt-4 space-y-3">
+                      {day.places.map((placeItem, pIndex) => (
+                        <div key={pIndex} className="p-4 bg-white rounded-lg shadow-sm border border-blue-100 hover:border-blue-300 transition-colors">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              {placeItem.place && typeof placeItem.place === 'object' && placeItem.place.name ? (
+                                <>
+                                  <h4 className="font-semibold text-gray-900">{placeItem.place.name}</h4>
+                                  <p className="text-sm text-gray-600 mt-1">{placeItem.place.description}</p>
+                                </>
+                              ) : (
+                                <p className="text-gray-600">Place details loading...</p>
+                              )}
+                            </div>
+                            {placeItem.timeSlot && (
+                              <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium capitalize">
+                                {placeItem.timeSlot}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <p className="text-center text-gray-500">
+                        No places added for this day yet. Add some places to make your itinerary complete!
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-          */}
+          ) : (
+            <div className="text-center text-gray-500 border-2 border-dashed border-gray-300 p-12 rounded-xl">
+              <h3 className="text-xl font-semibold text-gray-700 mb-2">Coming Soon!</h3>
+              <p>
+                Your day-by-day plan will appear here.
+              </p>
+              <p className="mt-2 text-sm">
+                No days have been generated for this itinerary yet.
+              </p>
+            </div>
+          )}
         </div>
       </div>
     </div>
