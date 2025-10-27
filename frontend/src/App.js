@@ -10,8 +10,10 @@ import ItineraryPage from './app/main/Itinerary/page.jsx';
 import ContactPage from './app/main/contact/page.jsx';
 import LoginPage from './app/main/user-login/page.jsx';
 import SignupPage from './app/main/user-signup/page.jsx';
-// 1. Import the new ItineraryDetailsPage
+// 1. Import the ItineraryDetailsPage (already present)
 import ItineraryDetailsPage from './app/main/itinerary-details/page.jsx';
+// 2. Import the new EditItineraryPage
+import EditItineraryPage from './app/main/itinerary-edit/page.jsx'; // Make sure this path is correct
 
 import { AuthProvider } from './context/AuthContext.jsx';
 
@@ -24,8 +26,10 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/about" element={<AboutPage />} />
           <Route path="/itinerary" element={<ItineraryPage />} />
-          {/* 2. Add the new dynamic route for itinerary details */}
+          {/* Keep the dynamic route for itinerary details */}
           <Route path="/itinerary/:itineraryId" element={<ItineraryDetailsPage />} />
+          {/* 3. Add the new dynamic route for editing an itinerary */}
+          <Route path="/itinerary/edit/:itineraryId" element={<EditItineraryPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />

@@ -100,7 +100,7 @@ const placeControllers = {
       if (location) {
          // Escape regex characters for safety if needed, use $regex operator
          const escapedLocation = escapeRegex(location.trim());
-         filter.location = { $regex: escapedLocation, $options: 'i' };
+         filter.location = { $regex: escapedLocation, $options: 'i' }; // Contains, case-insensitive
       }
       const places = await Place.find(filter);
       res.json({ places });
@@ -174,7 +174,7 @@ const itineraryControllers = {
     }
   },
 
-  // --- THIS FUNCTION HAS REFINED QUERY and LOGGING ---
+  // --- THIS FUNCTION HAS ADDED ERROR LOGGING WITHIN THE Place.find TRY BLOCK ---
   createItinerary: async (req, res) => {
     try {
       const { title, destination, description, duration, budget, startDate } = req.body;
@@ -203,28 +203,25 @@ const itineraryControllers = {
       calculatedEndDate.setDate(parsedStartDate.getDate() + parsedDuration - 1);
       // --- End Calculation ---
 
-      // --- *** REFINED QUERY: Fetch and Distribute Places *** ---
+      // --- *** ADDED MORE LOGGING: Fetch and Distribute Places *** ---
       let daysArray = [];
+      let potentialPlaces = [];
+      let queryToLog = {}; // Define queryToLog here to be accessible in catch
       try {
-        // Escape potential regex characters in user input destination and trim whitespace
         const trimmedDestination = destination.trim();
         const escapedDestination = escapeRegex(trimmedDestination);
-        // Using Mongoose's $regex operator explicitly
         const destinationQuery = { $regex: escapedDestination, $options: 'i' };
 
-        // *** ADDED CONSOLE LOG ***
-        console.log(`Searching for places with query:`, { location: destinationQuery }); // Log the query object
+        queryToLog = { location: destinationQuery }; // Assign value here
+        console.log(`Executing Place.find with query:`, JSON.stringify(queryToLog, null, 2));
 
-        // Find places using the explicit $regex query
-        const potentialPlaces = await Place.find({
-            location: destinationQuery
-        }).limit(parsedDuration * 3);
+        // Execute the query
+        potentialPlaces = await Place.find(queryToLog).limit(parsedDuration * 3);
 
-        // *** ADDED CONSOLE LOG ***
-        console.log(`Query result: Found ${potentialPlaces.length} potential places for "${destination}"`); // Log result after query execution
+        console.log(`Place.find raw result (length ${potentialPlaces.length}):`, JSON.stringify(potentialPlaces, null, 2));
+        console.log(`Query result: Found ${potentialPlaces.length} potential places for "${destination}"`);
 
-        // Simple distribution logic (no changes here):
-        // Ensure division by zero doesn't happen if parsedDuration is somehow 0 (though validated above)
+        // --- Distribution Logic (moved inside try block for safety) ---
         const effectiveDuration = Math.max(1, parsedDuration);
         const placesPerDay = potentialPlaces.length > 0 ? Math.max(1, Math.floor(potentialPlaces.length / effectiveDuration)) : 0;
         let placeIndex = 0;
@@ -232,15 +229,13 @@ const itineraryControllers = {
         for (let i = 1; i <= parsedDuration; i++) {
           const dayPlaces = [];
           const placesLeft = potentialPlaces.length - placeIndex;
-          // Assign remaining places to the last day or distribute as calculated
           const numPlacesForDay = (i === parsedDuration) ? placesLeft : Math.min(placesPerDay, placesLeft);
 
           for (let j = 0; j < numPlacesForDay; j++) {
-             // Check placeIndex bounds again for safety
              if (placeIndex < potentialPlaces.length) {
                 const timeSlot = (j % 2 === 0) ? 'morning' : 'afternoon';
                 dayPlaces.push({
-                    place: potentialPlaces[placeIndex]._id, // Reference Place by ID
+                    place: potentialPlaces[placeIndex]._id,
                     timeSlot: timeSlot,
                 });
                 placeIndex++;
@@ -250,15 +245,15 @@ const itineraryControllers = {
              dayNumber: i,
              title: `Day ${i} in ${destination}`,
              description: `Exploring ${destination}`,
-             places: dayPlaces, // Array of { place: ObjectId, timeSlot: String }
+             places: dayPlaces,
           });
         }
-
-        // *** EXISTING CONSOLE LOG ***
         console.log("Generated daysArray:", JSON.stringify(daysArray, null, 2));
+        // --- End Distribution Logic ---
 
       } catch(placeError) {
-         console.error("Error fetching or distributing places:", placeError);
+         // *** MORE DETAILED ERROR LOGGING HERE ***
+         console.error(`ERROR DURING Place.find or distribution for destination "${destination}" with query ${JSON.stringify(queryToLog)}:`, placeError);
          // Fallback remains the same
          daysArray = Array.from({ length: parsedDuration }, (_, i) => ({
              dayNumber: i + 1,
@@ -266,6 +261,7 @@ const itineraryControllers = {
              description: 'Details to be added',
              places: []
          }));
+         console.log("Falling back to empty daysArray due to error."); // Added confirmation log
       }
       // --- *** END: Fetch and Distribute Places *** ---
 
@@ -279,24 +275,22 @@ const itineraryControllers = {
         startDate: parsedStartDate,
         endDate: calculatedEndDate,
         user: userId,
-        days: daysArray // This might be empty or populated
+        days: daysArray
       });
 
-      // *** EXISTING CONSOLE LOG ***
       console.log("Attempting to save itinerary:", JSON.stringify(newItinerary, null, 2));
 
       // Save the document to the database
       await newItinerary.save();
 
       // Populate the newly saved itinerary before sending back
-      // Ensure population happens correctly after save
       const populatedItinerary = await Itinerary.findById(newItinerary._id).populate('days.places.place');
 
       // Send success response with the populated itinerary
       res.status(201).json({ message: 'Itinerary created successfully', itinerary: populatedItinerary });
 
     } catch (error) {
-      console.error('Create itinerary error:', error); // Log the full error
+      console.error('Create itinerary error (outside place finding):', error); // Differentiate outer catch
       if (error.name === 'ValidationError') {
           return res.status(400).json({ message: 'Validation failed', errors: error.errors });
       }
@@ -366,3 +360,4 @@ module.exports = {
   placeControllers,
   itineraryControllers
 };
+
